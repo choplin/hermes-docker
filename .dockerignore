@@ -1,0 +1,14 @@
+# Git
+.git
+.gitignore
+
+# Secrets
+.env
+.env.example
+
+# Persistent data
+data/
+
+# OS junk
+.DS_Store
+Thumbs.db

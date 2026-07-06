@@ -1,0 +1,50 @@
+services:
+  hermes:
+    build:
+      context: .
+      args:
+        HERMES_UID: ${HERMES_UID}
+        HERMES_GID: ${HERMES_GID}
+    container_name: hermes
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      HOME: /home/hermes
+      HERMES_HOME: /opt/data
+      HERMES_BOOTSTRAP_PROVIDER: ${HERMES_BOOTSTRAP_PROVIDER:-opencode-go}
+      HERMES_BOOTSTRAP_MODEL: ${HERMES_BOOTSTRAP_MODEL:-kimi-k2.6}
+      HERMES_BOOTSTRAP_ON_START: ${HERMES_BOOTSTRAP_ON_START:-1}
+      TERMINAL_CWD: /workspace
+      API_SERVER_HOST: 0.0.0.0
+      API_SERVER_ENABLED: true
+    command: bash -lc "hermes gateway run"
+    volumes:
+      - ./data:/opt/data
+      - ./workspace:/workspace
+
+  dashboard:
+    build:
+      context: .
+      args:
+        HERMES_UID: ${HERMES_UID}
+        HERMES_GID: ${HERMES_GID}
+    container_name: hermes-dashboard
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      HOME: /home/hermes
+      HERMES_HOME: /opt/data
+      HERMES_BOOTSTRAP_PROVIDER: ${HERMES_BOOTSTRAP_PROVIDER:-opencode-go}
+      HERMES_BOOTSTRAP_MODEL: ${HERMES_BOOTSTRAP_MODEL:-kimi-k2.6}
+      HERMES_BOOTSTRAP_ON_START: ${HERMES_BOOTSTRAP_ON_START:-1}
+      TERMINAL_CWD: /workspace
+    command: bash -lc "hermes dashboard --host 0.0.0.0"
+    volumes:
+      - ./data:/opt/data
+      - ./workspace:/workspace
+    ports:
+      - "9119:9119"
+    depends_on:
+      - hermes

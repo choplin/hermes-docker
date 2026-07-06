@@ -1,0 +1,12 @@
+# Secrets
+.env
+
+# Persistent data volume
+data/
+
+# Diagnostic logs
+logs/
+
+# OS junk
+.DS_Store
+Thumbs.db

@@ -4,6 +4,9 @@
 # Persistent data volume
 data/
 
+# Workspace mount (user project files)
+workspace/
+
 # Diagnostic logs
 logs/
 

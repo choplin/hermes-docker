@@ -1,82 +1,64 @@
 # Hermes Docker Template
 
-A self-contained Docker Compose template for running [Hermes Agent](https://github.com/NousResearch/hermes-agent) with Docker, using the OpenCode Go API as the LLM backend.
+A self-contained Docker Compose template for running [Hermes Agent](https://github.com/NousResearch/hermes-agent) with Docker, using OpenCode Go as the LLM backend.
 
 ## Files
 
 - `Dockerfile`: Builds a container with Node 24 + Python + uv + Hermes Agent
 - `docker-compose.yml`: Two services — `hermes` (gateway) and `dashboard` (web UI)
-- `.env`: Configuration file for API keys and bootstrap settings
-- `.env.example`: Template with all configurable variables
-- `scripts/entrypoint.sh`: Non-interactive bootstrap, directory setup, and privilege drop
-- `workspace/`: Mounted as `/workspace` inside the container — place project files here
+- `.env`: Configuration for API keys and bootstrap settings
+- `.env.example`: Template with all configurable variables (copy to `.env` to start)
+- `scripts/entrypoint.sh`: First-run bootstrap, directory setup, and privilege drop
+- `data/`: Persistent runtime data (config, logs, sessions) — mounted at `~/.hermes`
+- `workspace/`: Project files — mounted at `~/workspace`
 
-## Quick Start
+## Usage
 
 ```bash
-# 1. Set your OpenCode Go API key
+# 1. Configure your OpenCode Go API key
 cp .env.example .env
 # Edit .env and set OPENCODE_GO_API_KEY
 
-# 2. Build and start
+# 2. Build and start both services
 docker compose up -d
+
+# 3. Access the dashboard
+open http://localhost:9119
 ```
 
-## First-Time Setup (Post-Start)
+## First-Time Setup
 
-### 1. Dashboard Authentication
+After starting the containers, run the interactive setup wizard to configure messaging platforms, auxiliary models, and other options:
 
-The dashboard requires authentication when bound to `0.0.0.0`.
+```bash
+docker exec -it hermes bash -lc "hermes setup"
+```
 
-**OAuth (recommended):**
+### Dashboard Authentication
+
+The dashboard requires authentication when bound to `0.0.0.0`. Register with Nous Portal OAuth:
 
 ```bash
 docker exec -it hermes bash -lc "hermes dashboard register --redirect-uri http://<your-host>:9119/auth/callback"
 ```
 
-Complete the OAuth login in your browser, then restart the dashboard:
+Complete the OAuth flow in your browser, then restart the dashboard:
 
 ```bash
 docker compose restart dashboard
 ```
 
-Access the dashboard at `http://<your-host>:9119`.
-
-**Password auth (alternative):**
-
-```bash
-docker exec -it hermes bash -lc "\
-  HASH=\$(python -c 'from plugins.dashboard_auth.basic import hash_password; print(hash_password(\"your-password\"))'); \
-  cat >> ~/.hermes/config.yaml << EOF
-
-dashboard:
-  basic_auth:
-    username: admin
-    password_hash: \"\$HASH\"
-EOF
-"
-docker compose restart dashboard
-```
-
-### 2. Verify
-
-Access the dashboard at `http://<your-host>:9119`. The "Gateway Status" should show as Running.
+For password-based auth on a trusted LAN, see the [Hermes Web Dashboard docs](https://hermes-agent.nousresearch.com/docs/user-guide/features/web-dashboard).
 
 ## Default Flow
 
 1. On first start, `entrypoint.sh` runs as root:
-   - Creates directories, fixes volume permissions
-   - Generates an API key for the Gateway's API server
-   - Configures `dashboard.gateway_url` so the dashboard can find the gateway
-   - Symlinks `~/.hermes` → `/opt/data` (the persistent volume)
-2. Runs non-interactive bootstrap (if no config exists):
-   - Sets `provider` to `opencode-go`
-   - Sets the main model to `kimi-k2.6`
-   - Writes the API key from `OPENCODE_GO_API_KEY` to `.env`
-3. Drops privileges to the `hermes` user and starts:
-   - Gateway: `hermes gateway run` (messaging platforms + API server on port 8642)
-   - Dashboard: `hermes dashboard --host 0.0.0.0` (web UI on port 9119)
-4. On subsequent starts, existing config is detected and bootstrap is skipped
+   - Creates `~/.hermes/{logs,sessions}` inside the persistent volume
+   - Generates `API_SERVER_KEY` and writes it to `~/.hermes/.env`
+   - If no config exists, runs a non-interactive bootstrap (sets provider/model)
+2. Runs `hermes gateway run` (messaging gateway + API server on port 8642)
+3. On subsequent starts, existing config is detected and bootstrap is skipped
+4. The dashboard runs separately with `hermes dashboard --host 0.0.0.0`
 
 ## Switching Models at Runtime
 
@@ -89,29 +71,27 @@ Use the `/model` slash command in the dashboard or CLI:
 
 ## Services
 
-| Service | Port | Access | Auth |
-|---------|------|--------|------|
-| Gateway API | `8642` | `http://<host>:8642/v1/models` | Bearer token (`API_SERVER_KEY`) |
-| Dashboard | `9119` | `http://<host>:9119` | OAuth or password |
+| Service | Container | Port | Purpose |
+|---------|-----------|------|---------|
+| Gateway | `hermes` | `8642` (API) | Messaging backend + OpenAI-compatible API |
+| Dashboard | `hermes-dashboard` | `9119` | Web UI (OAuth or password auth) |
 
-## Workspace
-
-The `workspace/` directory is mounted at `/workspace` inside the container. This is where Hermes reads and writes project files. Start empty and place existing projects here as needed.
-
-The `data/` directory holds runtime data (config, logs, sessions) — it's not intended for direct file access.
-
-## Advanced Configuration
+## Advanced
 
 ```bash
 # Full interactive setup (messaging platforms, tools, skills, etc.)
 docker exec -it hermes bash -lc "hermes setup"
 
-# Open a CLI session inside the container
+# Open a CLI session
 docker exec -it hermes bash -lc "hermes"
+
+# View configuration
+docker exec -it hermes bash -lc "hermes config"
 ```
 
 ## Notes
 
-- `scripts/entrypoint.sh` runs as root, sets up directories/permissions, then drops to `hermes` user
-- `API_SERVER_KEY` is auto-generated on first start and stored in `~/.hermes/.env`
-- Provider/model config key names may need adjustment if Hermes changes its internal naming
+- `scripts/entrypoint.sh` runs as root, sets up directories and permissions, then drops to the `hermes` user
+- The `data/` directory holds runtime state (config, sessions, logs) and is mounted at `~/.hermes`
+- The `workspace/` directory holds project files and is mounted at `~/workspace`
+- Provider/model config keys may change with Hermes Agent updates

@@ -6,8 +6,12 @@
 .env
 .env.example
 
-# Persistent data
+# Persistent data and logs
 data/
+logs/
+
+# Workspace is mounted at runtime, not needed in build context
+workspace/
 
 # OS junk
 .DS_Store

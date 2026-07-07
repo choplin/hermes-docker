@@ -4,9 +4,8 @@ ARG HERMES_UID
 ARG HERMES_GID
 
 ENV DEBIAN_FRONTEND=noninteractive \
-    PATH=/home/hermes/.local/bin:$PATH \
-    HOME=/home/hermes \
-    HERMES_HOME=/opt/hermes
+    PATH=/home/hermes/.local/bin:/usr/local/bin:$PATH \
+    HOME=/home/hermes
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -29,20 +28,22 @@ RUN set -eux; \
         useradd --uid ${HERMES_UID} --gid ${HERMES_GID} --shell /bin/bash --create-home hermes; \
     fi
 
-RUN mkdir -p /opt/hermes /home/hermes/.hermes /home/hermes/.local/bin && \
+# Install uv as root so it's available system-wide
+RUN mkdir -p /opt/hermes /home/hermes/.local/bin && \
     curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    chown -R hermes:hermes /opt/hermes /home/hermes/.hermes /home/hermes/.local
+    chown -R hermes:hermes /opt/hermes /home/hermes
 
+# Install Hermes Agent. Use HERMES_HOME=/opt/hermes so the code lives
+# at /opt/hermes/hermes-agent/, separate from the runtime data volume.
 USER hermes
 WORKDIR /home/hermes
-
+ENV HERMES_HOME=/opt/hermes
 RUN curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
 
 COPY --chown=hermes:hermes scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 USER root
-VOLUME ["/opt/data"]
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["bash", "-lc", "hermes gateway run"]

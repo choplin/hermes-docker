@@ -11,17 +11,17 @@ services:
       - .env
     environment:
       HOME: /home/hermes
-      HERMES_HOME: /opt/data
+      HERMES_HOME: /home/hermes/.hermes
       HERMES_BOOTSTRAP_PROVIDER: ${HERMES_BOOTSTRAP_PROVIDER:-opencode-go}
       HERMES_BOOTSTRAP_MODEL: ${HERMES_BOOTSTRAP_MODEL:-kimi-k2.6}
       HERMES_BOOTSTRAP_ON_START: ${HERMES_BOOTSTRAP_ON_START:-1}
-      TERMINAL_CWD: /workspace
+      TERMINAL_CWD: /home/hermes/workspace
       API_SERVER_HOST: 0.0.0.0
       API_SERVER_ENABLED: true
     command: bash -lc "hermes gateway run"
     volumes:
-      - ./data:/opt/data
-      - ./workspace:/workspace
+      - ./data:/home/hermes/.hermes
+      - ./workspace:/home/hermes/workspace
 
   dashboard:
     build:
@@ -35,15 +35,19 @@ services:
       - .env
     environment:
       HOME: /home/hermes
-      HERMES_HOME: /opt/data
+      HERMES_HOME: /home/hermes/.hermes
       HERMES_BOOTSTRAP_PROVIDER: ${HERMES_BOOTSTRAP_PROVIDER:-opencode-go}
       HERMES_BOOTSTRAP_MODEL: ${HERMES_BOOTSTRAP_MODEL:-kimi-k2.6}
       HERMES_BOOTSTRAP_ON_START: ${HERMES_BOOTSTRAP_ON_START:-1}
-      TERMINAL_CWD: /workspace
+      TERMINAL_CWD: /home/hermes/workspace
+      GATEWAY_HEALTH_URL: http://hermes:8642
+      HERMES_DASHBOARD_FILES_ROOT: /home/hermes/workspace
+      HERMES_DASHBOARD_BASIC_AUTH_USERNAME: ${HERMES_DASHBOARD_BASIC_AUTH_USERNAME:-admin}
+      HERMES_DASHBOARD_BASIC_AUTH_PASSWORD: ${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD:-changeme}
     command: bash -lc "hermes dashboard --host 0.0.0.0"
     volumes:
-      - ./data:/opt/data
-      - ./workspace:/workspace
+      - ./data:/home/hermes/.hermes
+      - ./workspace:/home/hermes/workspace
     ports:
       - "9119:9119"
     depends_on:

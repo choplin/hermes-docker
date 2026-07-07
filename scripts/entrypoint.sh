@@ -2,29 +2,20 @@
 set -euo pipefail
 
 export HOME="${HOME:-/home/hermes}"
-export HERMES_HOME="${HERMES_HOME:-/opt/data}"
-export HERMES_DIR="${HERMES_DIR:-$HOME/.hermes}"
-CONFIG_FILE="${HERMES_DIR}/config.yaml"
-ENV_FILE="${HERMES_DIR}/.env"
-BOOTSTRAP_FLAG="${HERMES_DIR}/.bootstrap-complete"
+export HERMES_HOME="${HERMES_HOME:-/home/hermes/.hermes}"
+CONFIG_FILE="${HERMES_HOME}/config.yaml"
+ENV_FILE="${HERMES_HOME}/.env"
+BOOTSTRAP_FLAG="${HERMES_HOME}/.bootstrap-complete"
 
-# Ensure the persistent volume mount is writable by the hermes user.
-# On Docker Desktop (Windows/macOS), bind mounts are owned by root and
-# chown is a no-op, so chmod 777 is the reliable workaround.
+# Ensure persistent directories exist with correct ownership.
+# On Docker Desktop (Windows/macOS), chown on bind mounts is a no-op,
+# so we fall back to world-writable permissions as a workaround.
 if [ "$(id -u)" -eq 0 ]; then
-  mkdir -p "$HERMES_HOME"/logs "$HERMES_HOME"/sessions
-  chown -R hermes:hermes "$HERMES_HOME" "$HOME" 2>/dev/null || :
-  chmod -R 777 "$HERMES_HOME" 2>/dev/null || :
+  mkdir -p "$HERMES_HOME"/{logs,sessions}
+  chown -R hermes:hermes "$HERMES_HOME" 2>/dev/null || chmod -R 777 "$HERMES_HOME" 2>/dev/null || true
 fi
 
-mkdir -p "$HERMES_HOME" "$HERMES_DIR"
-
-link_persistent_dir() {
-  if [ ! -L "$HOME/.hermes" ]; then
-    rm -rf "$HOME/.hermes"
-    ln -s "$HERMES_HOME" "$HOME/.hermes"
-  fi
-}
+mkdir -p "$HERMES_HOME"
 
 has_nonempty_config() {
   [ -s "$CONFIG_FILE" ]
@@ -34,12 +25,15 @@ write_env_var() {
   local key="$1"
   local value="$2"
   touch "$ENV_FILE"
-  if grep -q "^${key}=" "$ENV_FILE"; then
+  if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
     sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
   else
     printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
   fi
 }
+
+# Bootstrap functions — each writes its API key and sets provider/model.
+# Returns 0 on success, 0 on missing key (skips gracefully).
 
 bootstrap_openrouter() {
   if [ -z "${OPENROUTER_API_KEY:-}" ]; then
@@ -96,19 +90,11 @@ bootstrap_if_needed() {
   touch "$BOOTSTRAP_FLAG"
 }
 
-link_persistent_dir
 bootstrap_if_needed
 
-# Ensure API_SERVER_KEY is set (used by Dashboard to communicate with Gateway)
+# Ensure API_SERVER_KEY is set (used by external clients to call the API server).
 if ! grep -q '^API_SERVER_KEY=' "$ENV_FILE" 2>/dev/null; then
   printf 'API_SERVER_KEY=%s\n' "$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$ENV_FILE"
-fi
-
-# Tell Dashboard where to find the Gateway API
-if ! grep -q '^dashboard.gateway_url=' "$CONFIG_FILE" 2>/dev/null; then
-  echo "" >> "$CONFIG_FILE"
-  echo "dashboard:" >> "$CONFIG_FILE"
-  echo "  gateway_url: http://hermes:8642" >> "$CONFIG_FILE"
 fi
 
 # Drop root privileges to the hermes user

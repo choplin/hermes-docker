@@ -12,7 +12,11 @@ BOOTSTRAP_FLAG="${HERMES_HOME}/.bootstrap-complete"
 # so we fall back to world-writable permissions as a workaround.
 if [ "$(id -u)" -eq 0 ]; then
   mkdir -p "$HERMES_HOME"/{logs,sessions}
-  chown -R hermes:hermes "$HERMES_HOME" 2>/dev/null || chmod -R 777 "$HERMES_HOME" 2>/dev/null || true
+  if ! chown -R hermes:hermes "$HERMES_HOME" 2>/dev/null; then
+    # chown failed (e.g. Docker Desktop bind mount) — try chmod instead
+    chmod -R 777 "$HERMES_HOME" 2>/dev/null || \
+      echo "[entrypoint] warning: could not set permissions on $HERMES_HOME" >&2
+  fi
 fi
 
 mkdir -p "$HERMES_HOME"
@@ -32,17 +36,14 @@ write_env_var() {
   fi
 }
 
-# Bootstrap functions — each writes its API key and sets provider/model.
-# Returns 0 on success, 0 on missing key (skips gracefully).
-
 bootstrap_openrouter() {
   if [ -z "${OPENROUTER_API_KEY:-}" ]; then
     echo "[entrypoint] OPENROUTER_API_KEY is not set; skipping bootstrap" >&2
     return 0
   fi
   write_env_var OPENROUTER_API_KEY "$OPENROUTER_API_KEY"
-  hermes config set provider openrouter || :
-  hermes config set model "${HERMES_BOOTSTRAP_MODEL:-openrouter/openai/gpt-4.1-mini}" || :
+  hermes config set provider openrouter
+  hermes config set model "${HERMES_BOOTSTRAP_MODEL:-openrouter/openai/gpt-4.1-mini}"
 }
 
 bootstrap_openai() {
@@ -51,8 +52,8 @@ bootstrap_openai() {
     return 0
   fi
   write_env_var OPENAI_API_KEY "$OPENAI_API_KEY"
-  hermes config set provider openai || :
-  hermes config set model "${HERMES_BOOTSTRAP_MODEL:-gpt-4.1-mini}" || :
+  hermes config set provider openai
+  hermes config set model "${HERMES_BOOTSTRAP_MODEL:-gpt-4.1-mini}"
 }
 
 bootstrap_opencode_go() {
@@ -61,8 +62,8 @@ bootstrap_opencode_go() {
     return 0
   fi
   write_env_var OPENCODE_GO_API_KEY "$OPENCODE_GO_API_KEY"
-  hermes config set provider opencode-go || :
-  hermes config set model "${HERMES_BOOTSTRAP_MODEL:-kimi-k2.6}" || :
+  hermes config set provider opencode-go
+  hermes config set model "${HERMES_BOOTSTRAP_MODEL:-kimi-k2.6}"
 }
 
 bootstrap_if_needed() {
@@ -86,7 +87,9 @@ bootstrap_if_needed() {
       ;;
   esac
 
-  hermes doctor || :
+  if [ -f "$CONFIG_FILE" ]; then
+    hermes doctor || echo "[entrypoint] hermes doctor reported issues (non-fatal)" >&2
+  fi
   touch "$BOOTSTRAP_FLAG"
 }
 

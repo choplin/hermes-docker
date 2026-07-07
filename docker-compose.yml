@@ -20,8 +20,8 @@ services:
       API_SERVER_ENABLED: true
     command: bash -lc "hermes gateway run"
     volumes:
-      - ./data:/home/hermes/.hermes
-      - ./workspace:/home/hermes/workspace
+      - hermes_data:/home/hermes/.hermes
+      - hermes_workspace:/home/hermes/workspace
 
   dashboard:
     build:
@@ -46,9 +46,13 @@ services:
       HERMES_DASHBOARD_BASIC_AUTH_PASSWORD: ${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD:-changeme}
     command: bash -lc "hermes dashboard --host 0.0.0.0"
     volumes:
-      - ./data:/home/hermes/.hermes
-      - ./workspace:/home/hermes/workspace
+      - hermes_data:/home/hermes/.hermes
+      - hermes_workspace:/home/hermes/workspace
     ports:
       - "9119:9119"
     depends_on:
       - hermes
+
+volumes:
+  hermes_data:
+  hermes_workspace:

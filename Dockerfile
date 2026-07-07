@@ -29,7 +29,7 @@ RUN set -eux; \
     fi
 
 # Install uv as root so it's available system-wide
-RUN mkdir -p /opt/hermes /home/hermes/.local/bin && \
+RUN mkdir -p /opt/hermes /home/hermes/.local/bin /home/hermes/.hermes /home/hermes/workspace && \
     curl -LsSf https://astral.sh/uv/install.sh | sh && \
     chown -R hermes:hermes /opt/hermes /home/hermes
 

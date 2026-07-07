@@ -9,8 +9,6 @@ A self-contained Docker Compose template for running [Hermes Agent](https://gith
 - `.env`: Configuration for API keys and bootstrap settings
 - `.env.example`: Template with all configurable variables (copy to `.env` to start)
 - `scripts/entrypoint.sh`: First-run bootstrap, directory setup, and privilege drop
-- `data/`: Persistent runtime data (config, logs, sessions) — mounted at `~/.hermes`
-- `workspace/`: Project files — mounted at `~/workspace`
 
 ## Usage
 
@@ -76,6 +74,16 @@ Use the `/model` slash command in the dashboard or CLI:
 | Gateway | `hermes` | `8642` (API) | Messaging backend + OpenAI-compatible API |
 | Dashboard | `hermes-dashboard` | `9119` | Web UI (OAuth or password auth) |
 
+## Volumes
+
+| Volume | Mount point | Purpose |
+|--------|-------------|---------|
+| `hermes_data` | `~/.hermes` | Runtime state (config, sessions, logs) |
+| `hermes_workspace` | `~/workspace` | Project files |
+
+Both volumes are Docker named volumes — no host directories needed.
+Files can be managed via the dashboard's FILES tab.
+
 ## Advanced
 
 ```bash
@@ -88,10 +96,3 @@ docker exec -it hermes bash -lc "hermes"
 # View configuration
 docker exec -it hermes bash -lc "hermes config"
 ```
-
-## Notes
-
-- `scripts/entrypoint.sh` runs as root, sets up directories and permissions, then drops to the `hermes` user
-- The `data/` directory holds runtime state (config, sessions, logs) and is mounted at `~/.hermes`
-- The `workspace/` directory holds project files and is mounted at `~/workspace`
-- Provider/model config keys may change with Hermes Agent updates

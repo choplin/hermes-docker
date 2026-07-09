@@ -42,8 +42,6 @@ services:
       TERMINAL_CWD: /home/hermes/workspace
       GATEWAY_HEALTH_URL: http://hermes:8642
       HERMES_DASHBOARD_FILES_ROOT: /home/hermes/workspace
-      HERMES_DASHBOARD_BASIC_AUTH_USERNAME: ${HERMES_DASHBOARD_BASIC_AUTH_USERNAME:-admin}
-      HERMES_DASHBOARD_BASIC_AUTH_PASSWORD: ${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD:-changeme}
     command: bash -lc "hermes dashboard --host 0.0.0.0"
     volumes:
       - hermes_data:/home/hermes/.hermes
